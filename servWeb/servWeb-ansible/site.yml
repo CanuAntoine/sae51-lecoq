@@ -1,0 +1,62 @@
+- hosts: servweb1
+  become: yes
+  vars:
+    compose_src: files/docker-compose.yml
+    www_src: files/www
+
+  tasks:
+    - name: Update apt
+      apt:
+        update_cache: yes
+
+    - name: Install prerequisites
+      apt:
+        name:
+          - curl
+          - apt-transport-https
+          - ca-certificates
+          - gnupg
+          - lsb-release
+        state: present
+
+    - name: Download Docker GPG key directly on VM
+      ansible.builtin.command: >
+        curl -fsSL https://download.docker.com/linux/debian/gpg
+        -o /usr/share/keyrings/docker-archive-keyring.gpg
+      args:
+        creates: /usr/share/keyrings/docker-archive-keyring.gpg
+
+    - name: Add Docker repo
+      ansible.builtin.apt_repository:
+        repo: "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian {{ ansible_lsb.codename }} stable"
+        state: present
+
+    - name: Install Docker
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+        state: latest
+        update_cache: yes
+
+    - name: Create compose directory
+      file:
+        path: /home/{{ ansible_user }}/compose
+        state: directory
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0755'
+
+    - name: Copy docker-compose.yml
+      copy:
+        src: "{{ compose_src }}"
+        dest: "/home/{{ ansible_user }}/compose/docker-compose.yml"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0644'
+
+    - name: Launch Docker stack using Docker Compose plugin
+      command: docker compose up -d
+      args:
+        chdir: /home/{{ ansible_user }}/compose

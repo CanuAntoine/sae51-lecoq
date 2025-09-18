@@ -1,0 +1,24 @@
+version: "3.8"
+services:
+  traefik:
+    image: traefik:v2.10
+    command:
+      - --providers.docker=true
+      - --entrypoints.web.address=:80
+      - --api.insecure=true
+    ports:
+      - "80:80"  # Traefik exposé sur le port 80
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
+
+  webapp:
+    image: php:8.2-apache
+    container_name: webapp
+    ports:
+      - "8000:80"   # ← Map le port 80 du conteneur sur 8000 de la VM
+    volumes:
+      - ./www:/var/www/html
+    labels:
+      - "traefik.enable=false"  # On désactive Traefik pour ce conteneur dans ce test
+    restart: unless-stopped

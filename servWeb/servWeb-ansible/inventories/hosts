@@ -1,0 +1,2 @@
+[servweb1]
+10.0.81.36 ansible_user=servweb1 ansible_ssh_private_key_file=~/.ssh/id_rsa_sae51 ansible_python_interpreter=/usr/bin/python3
