@@ -60,3 +60,88 @@
       command: docker compose up -d
       args:
         chdir: /home/{{ ansible_user }}/compose
+
+- name: Déployer Apache servweb1
+  hosts: servweb1
+  become: yes
+  vars:
+    apache_port: 8000
+    site_src: files/www/
+    site_dest: /var/www/html
+
+  tasks:
+    - name: Installer Apache et PHP
+      apt:
+        name: 
+          - apache2
+          - php
+          - libapache2-mod-php
+          - php-mysql
+          - php-sqlite3
+        state: present
+        update_cache: yes
+
+    - name: Créer /var/www/html avec droits
+      file:
+        path: "{{ site_dest }}"
+        state: directory
+        owner: www-data
+        group: www-data
+        mode: '0755'
+        recurse: yes
+
+    - name: Copier tout le contenu du site
+      copy:
+        src: files/www/
+        dest: /var/www/html/
+        owner: www-data
+        group: www-data
+        mode: '0644'
+        directory_mode: '0755'
+        force: yes
+
+    - name: Mettre à jour ports.conf pour Apache
+      lineinfile:
+        path: /etc/apache2/ports.conf
+        regexp: '^Listen {{ apache_port }}'
+        line: "Listen {{ apache_port }}"
+
+    - name: Créer le VirtualHost Apache
+      copy:
+        dest: /etc/apache2/sites-available/servweb1.conf
+        content: |
+          <VirtualHost *:{{ apache_port }}>
+              ServerAdmin webmaster@localhost
+              DocumentRoot {{ site_dest }}
+
+              <Directory {{ site_dest }}>
+                  Options Indexes FollowSymLinks
+                  AllowOverride None
+                  Require all granted
+              </Directory>
+
+              ErrorLog ${APACHE_LOG_DIR}/servweb1_error.log
+              CustomLog ${APACHE_LOG_DIR}/servweb1_access.log combined
+          </VirtualHost>
+      notify: Restart Apache
+
+    - name: Déployer le contenu du site
+      copy:
+        src: files/www/
+        dest: /var/www/html/
+        owner: www-data
+        group: www-data
+        mode: '0755'
+        recurse: yes
+
+    - name: Activer le site
+      command: a2ensite servweb1.conf
+      args:
+        creates: /etc/apache2/sites-enabled/servweb1.conf
+      notify: Restart Apache
+
+  handlers:
+    - name: Restart Apache
+      service:
+        name: apache2
+        state: restarted

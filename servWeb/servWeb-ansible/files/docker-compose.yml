@@ -16,7 +16,7 @@ services:
     image: php:8.2-apache
     container_name: webapp
     ports:
-      - "8000:80"   # ← Map le port 80 du conteneur sur 8000 de la VM
+      - "8080:80"   # ← Map le port 80 du conteneur sur 8000 de la VM
     volumes:
       - ./www:/var/www/html
     labels:
