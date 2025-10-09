@@ -45,5 +45,5 @@ Toutes les commandes doivent être effectuées depuis le dossier `sae51-lecoq`.
 
     Executer le script ansible
     ```bash
-    ansible-playbook -i servWeb/servWeb-ansible/inventories/hosts servWeb/servWeb-ansible/site.yml
+    ansible-playbook -i servWeb/servWeb-ansible/inventories/hosts servWeb/servWeb-ansible/site.yml --ask-become-pass
     ```

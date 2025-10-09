@@ -2,7 +2,6 @@
 
 #Vérification de l'existence de VirtualBox
 if ! command -v vboxmanage > /dev/null 2>&1; then 
-    #L'option '-v' permet d'utiliser le mode verbose qui affiche le résultat de la commande
     echo "Erreur : VBoxManage n'est pas installé ou est introuvable"
     exit 1
 fi
@@ -17,7 +16,6 @@ VRAM=256
 for var in RAM DD CPU VRAM; do
     value=${!var}
     if ! [[ $value =~ ^[0-9]+$ ]]; then
-        #utilisation d'un regex pour filtrer seulement les entiers
         echo "Erreur : $var doit être un entier (valeur actuelle: '$value')"
         exit 1
     fi
@@ -83,8 +81,7 @@ if [ "$action" == "N" ] && [ $# -eq 5 ]; then
         --install-additions \
         --start-vm=gui \
         || { echo "Erreur : Installation automatisée échouée"; exit 1; }
-    echo "VM créée avec succès et IP host-only à configurer !"
-    echo "Une fois la VM redémarrer (menu de login), lancer la commande : ./genMV.sh I $vm_name $user_vm $pass_vm"
+    echo "VM créée avec succès; IP host-only à configurer !"
     exit 0
 fi
 
@@ -92,28 +89,15 @@ fi
 #Initialiser le réseau + procédure à suivre
 if [ "$action" == "I" ] && [ $# -eq 4 ]; then
 
-    # Plage IP possibles
-    start_ip=10
-    end_ip=200
-    network="192.168.56"
-
-    # Fonction pour tester si une IP est libre
-    find_free_ip() {
-        for i in $(seq $start_ip $end_ip); do
-            ip="$network.$i"
-            if ! ping -c 1 -W 1 $ip &> /dev/null; then
-                echo $ip
-                return
-            fi
-        done
-        echo ""
-    }
-    free_ip=$(find_free_ip)
-    echo Adresse IP : "$free_ip"
-
     #Utilisation des arguments
     user_vm=$3
     pass_vm=$4
+
+    #Ajout des droits sudo à l'utilisateur et installer les paquets nécessaires
+    read -p "Se connecter à la machine virtuelle"
+    read -p "Ouvrir un terminal et se mettre en mode root (commande : su)"
+    read -p "Ajouter les droits sudo à l'utilisateur : sudo usermod -aG sudo $user_vm"    
+    read -p "Installer le service ssh et netplan : apt update && apt install openssh-server netplan.io -y"
 
     #Initialisation réseau
     if vboxmanage list runningvms | grep -q "\"$vm_name\""; then 
@@ -131,7 +115,7 @@ if [ "$action" == "I" ] && [ $# -eq 4 ]; then
     vboxmanage modifyvm "$vm_name" --nic2 hostonly --hostonlyadapter2 vboxnet0 \
         || { echo "Erreur : Impossible de modifier nic2"; exit 1; }
 
-    vboxmanage startvm "$vm_name" > /dev/null 2>&1
+    vboxmanage startvm "$vm_name" --type gui > /dev/null 2>&1
     echo "Démarrage de $vm_name..."
     if ! [ $? == 0 ]; then 
         echo "Erreur : Impossible de démarrer la machine"
@@ -154,14 +138,24 @@ if [ "$action" == "I" ] && [ $# -eq 4 ]; then
     done
 
     #Procédure à Suivre
-    read -p "Récupérer l'adresse IP écrite plus haut"
-    read -p "Se connecter à la machine virtuelle avec $user_vm et $pass_vm"
-    read -p "Se mettre en mode root (commande : su)"
-    read -p "Copier le fichier network.txt dans /etc/network/interfaces.d/enp0s8 en modifiant <ip> par la bonne adresse IP"
-    read -p "Saisir la commande : sudo systemctl restart networking.service"
-    read -p "Vérifier que l'adresse IP est bien : $free_ip"
+    read -p "Ouvir un terminal et récupérer l'adresse IP en 192.168.56.x avec : ip addr show"
+    read -p "Créer le fichier /etc/netplan/01-netcfg.yaml et y copier network.txt en modifiant <ip> par la bonne adresse IP"
 
-    echo "Configuration IP terminée pour $vm_name : $free_ip"
+    echo "Saisir les commande :"
+    read -p "   sudo chmod 600 /etc/netplan/01-netcfg.yaml"
+    read -p "   sudo netplan generate"
+    read -p "   sudo netplan apply"
+    read -p "   sudo ssh-keygen -A"
+    read -p "   sudo systemctl restart ssh"
+    read -p "   sudo systemctl status ssh"
+
+    echo "Vérifier les informations suivantes :"
+    read -p "   Connexion internet : ping 8.8.8.8"
+    read -p "   Passerelle correcte (@NAT et pas @Reseau_interne) : ip route | grep default"
+    read -p "   Serveurs DNS : cat /etc/resolv.conf"
+    read -p "   Ping passerelle : ping 192.168.56.1"
+
+    echo "Vous pouvez maintenant utiliser la vm"
     exit 0
 
 fi
@@ -218,8 +212,6 @@ if [ $# -eq 2 ] || [ $# -eq 1 ]; then
         vm_files=$(find ~/VirtualBox\ VMs/ -name "*$vm_name*" 2>/dev/null)
         if [ -n "$vm_files" ]; then
             rm -rf "$vm_files"
-            #L'option '-r' permet de supprimer de façon récusrive (dossier et contenu)
-            #L'option '-f' force l'exécution de la commande
             echo "Suppresion des fichiers de la VM"
         fi
         exit 0
@@ -231,29 +223,23 @@ if [ $# -eq 2 ] || [ $# -eq 1 ]; then
         vboxmanage list vms > "$temp_file"
 
         echo -e "VMs list and metadata :\n"
-        #L'option '-e' permet à la commande d'interpréter des caractères comme \n (retour à la ligne)
         while read -r line; do
-        #l'option '-r' empêche la commande read d'interprêter les '\'
             vm=$(echo "$line" | cut -d '"' -f2)
-            #L'option '-d' indique quel est le délimiteur de coupure, dans notre cas il s'agit de : " 
             date_creation=$(vboxmanage getextradata "$vm" "CreationDate" 2>/dev/null | cut -d' ' -f2-)
             created_by=$(vboxmanage getextradata "$vm" "CreatedBy" 2>/dev/null | cut -d' ' -f2-)
             [ -z "$date_creation" ] && date_creation="Unknow"
             [ -z "$created_by" ] && created_by="Unknow"
-            #L'option '-z' vérifie si la chaine est vide
         
             if [ $# == 1 ]; then
                 echo "VM: $vm"
                 echo "  Creation : $date_creation"
                 echo -e "  By : $created_by \n"
-                #L'option '-e' permet à la commande d'interpréter des caractères comme \n (retour à la ligne)
             fi
         done < "$temp_file"
         if [ $# == 2 ]; then
             echo "VM: $vm_name"
             echo "  Creation: $date_creation"
             echo -e "   By: $created_by \n"
-            #L'option '-e' permet à la commande d'interpréter des caractères comme \n (retour à la ligne)
         fi
         rm "$temp_file"
         exit 0

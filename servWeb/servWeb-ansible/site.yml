@@ -1,4 +1,4 @@
-- hosts: servweb1
+- hosts: user
   become: yes
   vars:
     compose_src: files/docker-compose.yml
@@ -19,10 +19,9 @@
           - lsb-release
         state: present
 
-    - name: Download Docker GPG key directly on VM
-      ansible.builtin.command: >
-        curl -fsSL https://download.docker.com/linux/debian/gpg
-        -o /usr/share/keyrings/docker-archive-keyring.gpg
+    - name: Download and install Docker GPG key
+      ansible.builtin.shell: |
+        curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
       args:
         creates: /usr/share/keyrings/docker-archive-keyring.gpg
 
@@ -61,11 +60,11 @@
       args:
         chdir: /home/{{ ansible_user }}/compose
 
-- name: Déployer Apache servweb1
-  hosts: servweb1
+- name: Déployer Apache user
+  hosts: user
   become: yes
   vars:
-    apache_port: 8000
+    apache_port: 8500
     site_src: files/www/
     site_dest: /var/www/html
 
@@ -101,14 +100,20 @@
         force: yes
 
     - name: Mettre à jour ports.conf pour Apache
-      lineinfile:
+      replace:
         path: /etc/apache2/ports.conf
-        regexp: '^Listen {{ apache_port }}'
-        line: "Listen {{ apache_port }}"
+        regexp: '^Listen .*'
+        replace: "Listen {{ apache_port }}"
+      notify: Restart Apache
+
+    - name: Supprimer les anciens VirtualHosts
+      file:
+        path: /etc/apache2/sites-available/old-vhost.conf
+        state: absent
 
     - name: Créer le VirtualHost Apache
       copy:
-        dest: /etc/apache2/sites-available/servweb1.conf
+        dest: /etc/apache2/sites-available/user.conf
         content: |
           <VirtualHost *:{{ apache_port }}>
               ServerAdmin webmaster@localhost
@@ -120,8 +125,8 @@
                   Require all granted
               </Directory>
 
-              ErrorLog ${APACHE_LOG_DIR}/servweb1_error.log
-              CustomLog ${APACHE_LOG_DIR}/servweb1_access.log combined
+              ErrorLog ${APACHE_LOG_DIR}/user_error.log
+              CustomLog ${APACHE_LOG_DIR}/user_access.log combined
           </VirtualHost>
       notify: Restart Apache
 
@@ -135,9 +140,9 @@
         recurse: yes
 
     - name: Activer le site
-      command: a2ensite servweb1.conf
+      command: a2ensite user.conf
       args:
-        creates: /etc/apache2/sites-enabled/servweb1.conf
+        creates: /etc/apache2/sites-enabled/user.conf
       notify: Restart Apache
 
   handlers:
