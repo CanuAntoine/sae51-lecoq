@@ -1,0 +1,4 @@
+---
+- name: Provision a new VM
+  debug:
+    msg: "I would create a new VM here and add it to inventory"

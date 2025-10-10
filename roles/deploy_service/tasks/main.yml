@@ -1,0 +1,30 @@
+- name: Choose target host
+  set_fact:
+    target_host: "{{ groups['hosts_pool'] | first }}"
+
+- name: Prepare target host
+  include_role:
+    name: host_prepare
+  vars:
+    prepare_host: "{{ target_host }}"
+
+- name: Create service directory
+  ansible.builtin.file:
+    path: "/srv/services/{{ service_user }}/{{ service_request_id }}"
+    state: directory
+    mode: '0755'
+  delegate_to: "{{ target_host }}"
+  become: yes
+
+- name: Run service container
+  community.docker.docker_container:
+    name: "svc_{{ service_user }}_{{ service_request_id }}"
+    image: "itzg/minecraft-server"
+    state: started
+    restart_policy: unless-stopped
+    volumes:
+      - "/srv/services/{{ service_user }}/{{ service_request_id }}:/data"
+    ports:
+      - "0:25565"
+  delegate_to: "{{ target_host }}"
+  become: true

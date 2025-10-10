@@ -97,7 +97,9 @@ if [ "$action" == "I" ] && [ $# -eq 4 ]; then
     read -p "Se connecter à la machine virtuelle"
     read -p "Ouvrir un terminal et se mettre en mode root (commande : su)"
     read -p "Ajouter les droits sudo à l'utilisateur : sudo usermod -aG sudo $user_vm"    
-    read -p "Installer le service ssh et netplan : apt update && apt install openssh-server netplan.io -y"
+    echo "Installer le service ssh et netplan : "
+    read -p "apt update" 
+    read -p "apt install openssh-server netplan.io -y"
 
     #Initialisation réseau
     if vboxmanage list runningvms | grep -q "\"$vm_name\""; then 
@@ -138,7 +140,8 @@ if [ "$action" == "I" ] && [ $# -eq 4 ]; then
     done
 
     #Procédure à Suivre
-    read -p "Ouvir un terminal et récupérer l'adresse IP en 192.168.56.x avec : ip addr show"
+    echo "Ouvir un terminal et récupérer l'adresse IP en 192.168.56.x avec : ip addr show"
+    read -p "Si vous n'avez pas d'adresse IP, alors faites : sudo reboot"
     read -p "Créer le fichier /etc/netplan/01-netcfg.yaml et y copier network.txt en modifiant <ip> par la bonne adresse IP"
 
     echo "Saisir les commande :"

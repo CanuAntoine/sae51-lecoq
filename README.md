@@ -15,7 +15,7 @@ Toutes les commandes doivent être effectuées depuis le dossier `sae51-lecoq`.
 Après avoir tout initialisé on peut se connecter en tant qu'utilisateur lambda à l'adresse : 
     http://<addresse_ip_server_web>:8500/index.php
 
-## Procédure pour le(s) Serveur(s) Web
+# Procédure d'installation
 
 1. **Installation de la VM**
 
@@ -49,7 +49,17 @@ Après avoir tout initialisé on peut se connecter en tant qu'utilisateur lambda
         servWeb/servWeb-ansible/inventories/hosts
     PS : Vous pouvez vous baser sur le fichier hosts-example.txt présents dans le même répertoire
 
-3.  **Executer le script ansible**
+## Procédure pour le(s) Serveur(s) Web
+
     ```bash
     ansible-playbook -i servWeb/servWeb-ansible/inventories/hosts servWeb/servWeb-ansible/site.yml --ask-become-pass
+    ```
+
+## Procédure pour les serveurs d'Hébergement
+
+    <!-- sudo usermod -aG docker <your_user> -->
+
+
+    ```bash
+    ansible-playbook -i servHebergement/servHebergement-ansible/inventory/hosts.ini servHebergement/servHebergement-ansible/playbooks/check_and_provision.yml -e service_type=minecraft -e service_user=testuser -e service_request_id=req001 --ask-become-pass
     ```
