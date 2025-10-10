@@ -60,7 +60,7 @@
       args:
         chdir: /home/{{ ansible_user }}/compose
 
-- name: Déployer Apache user
+- name: Deploy Apache user
   hosts: user
   become: yes
   vars:
@@ -69,7 +69,7 @@
     site_dest: /var/www/html
 
   tasks:
-    - name: Installer Apache et PHP
+    - name: Install Apache and PHP
       apt:
         name: 
           - apache2
@@ -80,7 +80,7 @@
         state: present
         update_cache: yes
 
-    - name: Créer /var/www/html avec droits
+    - name: Create /var/www/html
       file:
         path: "{{ site_dest }}"
         state: directory
@@ -89,7 +89,7 @@
         mode: '0755'
         recurse: yes
 
-    - name: Copier tout le contenu du site
+    - name: Copy site content
       copy:
         src: files/www/
         dest: /var/www/html/
@@ -99,19 +99,19 @@
         directory_mode: '0755'
         force: yes
 
-    - name: Mettre à jour ports.conf pour Apache
+    - name: Set Apache ports
       replace:
         path: /etc/apache2/ports.conf
         regexp: '^Listen .*'
         replace: "Listen {{ apache_port }}"
       notify: Restart Apache
 
-    - name: Supprimer les anciens VirtualHosts
+    - name: Delete old VirtualHosts
       file:
         path: /etc/apache2/sites-available/old-vhost.conf
         state: absent
 
-    - name: Créer le VirtualHost Apache
+    - name: Create Apache VirtualHost
       copy:
         dest: /etc/apache2/sites-available/user.conf
         content: |
@@ -130,7 +130,7 @@
           </VirtualHost>
       notify: Restart Apache
 
-    - name: Déployer le contenu du site
+    - name: Deploy the site
       copy:
         src: files/www/
         dest: /var/www/html/
@@ -139,7 +139,7 @@
         mode: '0755'
         recurse: yes
 
-    - name: Activer le site
+    - name: Activate the site
       command: a2ensite user.conf
       args:
         creates: /etc/apache2/sites-enabled/user.conf

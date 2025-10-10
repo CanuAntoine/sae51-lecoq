@@ -8,7 +8,7 @@ fi
 
 #Variables
 RAM=4096
-DD=20000
+DD=8000
 CPU=1
 VRAM=256
 
