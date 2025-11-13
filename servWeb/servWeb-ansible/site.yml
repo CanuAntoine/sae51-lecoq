@@ -1,4 +1,4 @@
-- hosts: user
+- hosts: ansible
   become: yes
   vars:
     compose_src: files/docker-compose.yml
@@ -61,7 +61,7 @@
         chdir: /home/{{ ansible_user }}/compose
 
 - name: Deploy Apache user
-  hosts: user
+  hosts: ansible
   become: yes
   vars:
     apache_port: 8500

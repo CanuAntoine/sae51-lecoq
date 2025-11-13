@@ -10,7 +10,7 @@ fi
 RAM=4096
 DD=8000
 CPU=1
-VRAM=256
+VRAM=32
 
 #Vérification si les variables sont bien des integer
 for var in RAM DD CPU VRAM; do
@@ -29,19 +29,34 @@ arg4="$4"
 arg5="$5"
 
 #Création d'une nouvelle VM
-if [ "$action" == "N" ] && [ $# -eq 5 ]; then
+if [ "$action" == "N" ] && [ $# -eq 4 ]; then
 
     #Utilisation des arguments
-    iso_path=$3
-    user_vm=$4
-    pass_vm=$5
+    user_vm=$3
+    pass_vm=$4
 
     #Création VM
     echo "La machine '$vm_name' en cours de création..."
-    vboxmanage createvm --name "$vm_name" --ostype "Debian_64" --register > /dev/null 2>&1
+    vboxmanage createvm --name "$vm_name" \
+        --ostype "Debian_64" \
+        --register > /dev/null 2>&1
     if [ $? -ne 0 ]; then 
         echo "Attention : la machine '$vm_name' existe déjà ou une erreur est survenue."
         exit 1
+    fi
+
+    iso_path="$HOME/debian-12.12.0-amd64-netinst.iso"
+    iso_url="https://cdimage.debian.org/cdimage/archive/12.12.0/amd64/iso-cd/debian-12.12.0-amd64-netinst.iso"
+
+    if [ -f "$iso_path" ]; then
+        echo "ISO déjà présente : $iso_path"
+    else
+        echo "⬇Téléchargement de Debian 12.12.0..."
+        wget -q --show-progress "$iso_url" -O "$iso_path" || {
+            echo "Erreur : impossible de télécharger l'ISO"
+            exit 1
+        }
+        echo "Téléchargement terminé : $iso_path"
     fi
 
     #Modifications caractéristiques VM
@@ -50,10 +65,10 @@ if [ "$action" == "N" ] && [ $# -eq 5 ]; then
         --nic1 nat --nic2 none \
         --boot1 disk --boot2 none --boot3 none --boot4 none \
         --vram $VRAM --graphicscontroller vmsvga \
-        || { echo "Erreur : Impossible de modifier les caractéristique de la machine"; exit 1; }
+    || { echo "Erreur : Impossible de modifier les caractéristique de la machine"; exit 1; }
 
     #Ajout du DD
-    vboxmanage createhd --filename "/home/$USER/VirtualBox VMs/$vm_name/$vm_name.vdi" --size $DD --variant Standard --format VDI > /dev/null 2>&1 \
+    vboxmanage createmedium --filename "/home/$USER/VirtualBox VMs/$vm_name/$vm_name.vdi" --size $DD --variant Standard > /dev/null 2>&1 \
         || { echo "Erreur : Impossible de créer le Disque Dur"; exit 1; }
 
     #Ajout du controlleur SATA
@@ -71,7 +86,6 @@ if [ "$action" == "N" ] && [ $# -eq 5 ]; then
         || { echo "Erreur : Impossible d'ajouter l'information de l'utilisateur"; exit 1; }
 
     # Installation automatisée de l'OS
-    echo "Installation automatique lancée pour '$vm_name'..."
     vboxmanage unattended install "$vm_name" \
         --iso="$iso_path" \
         --user="$user_vm" \
@@ -80,7 +94,9 @@ if [ "$action" == "N" ] && [ $# -eq 5 ]; then
         --hostname="$vm_name.local" \
         --install-additions \
         --start-vm=gui \
-        || { echo "Erreur : Installation automatisée échouée"; exit 1; }
+        --package-selection-adjustment minimal \
+    || { echo "Erreur : Installation automatisée échouée"; exit 1; }
+w
     echo "VM créée avec succès; IP host-only à configurer !"
     exit 0
 fi
@@ -96,10 +112,10 @@ if [ "$action" == "I" ] && [ $# -eq 4 ]; then
     #Ajout des droits sudo à l'utilisateur et installer les paquets nécessaires
     read -p "Se connecter à la machine virtuelle"
     read -p "Ouvrir un terminal et se mettre en mode root (commande : su)"
+    echo "Installer les paquests nécessaires"
+    read -p "   apt update" 
+    read -p "   apt install sudo openssh-server netplan.io vim-y"
     read -p "Ajouter les droits sudo à l'utilisateur : sudo usermod -aG sudo $user_vm"    
-    echo "Installer le service ssh et netplan : "
-    read -p "apt update" 
-    read -p "apt install openssh-server netplan.io -y"
 
     #Initialisation réseau
     if vboxmanage list runningvms | grep -q "\"$vm_name\""; then 
@@ -140,12 +156,19 @@ if [ "$action" == "I" ] && [ $# -eq 4 ]; then
     done
 
     #Procédure à Suivre
-    echo "Ouvir un terminal et récupérer l'adresse IP en 192.168.56.x avec : ip addr show"
-    read -p "Si vous n'avez pas d'adresse IP, alors faites : sudo reboot"
-    read -p "Créer le fichier /etc/netplan/01-netcfg.yaml et y copier network.txt en modifiant <ip> par la bonne adresse IP"
-
+    echo "Reconnectez vous"
+    
+    read -p "Créer le fichier /etc/netplan/01-netcfg.yaml et y copier network-init.txt"
     echo "Saisir les commande :"
     read -p "   sudo chmod 600 /etc/netplan/01-netcfg.yaml"
+    read -p "   sudo netplan generate"
+    read -p "   sudo netplan apply"
+
+    read -p "Récupérer l'adresse IP en 192.168.56.x avec : ip addr show"
+    read -p "Si vous n'avez pas d'adresse IP, alors faites : sudo reboot"
+
+    read -p "Modifier le fichier /etc/netplan/01-netcfg.yaml et y copier network.txt en modifiant <ip> par la bonne adresse IP"
+    echo "Saisir les commande :"
     read -p "   sudo netplan generate"
     read -p "   sudo netplan apply"
     read -p "   sudo ssh-keygen -A"

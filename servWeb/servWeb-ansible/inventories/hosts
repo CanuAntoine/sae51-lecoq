@@ -1,2 +1,2 @@
-[user]
-192.168.56.104 ansible_user=user ansible_ssh_private_key_file=~/.ssh/id_rsa_sae51 ansible_python_interpreter=/usr/bin/python3
+[ansible]
+192.168.56.106 ansible_user=ansible ansible_ssh_private_key_file=~/.ssh/keys-ansible_rsa ansible_python_interpreter=/usr/bin/python3
