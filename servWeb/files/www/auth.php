@@ -1,13 +1,13 @@
 <?php
 session_start();
 
-$db = new PDO('sqlite:users.db');
+$db = new PDO('sqlite:/opt/myapp/servWeb/files/www/users.db');
 $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
 $username = $_POST['username'];
 $password = $_POST['password'];
 
-// Vérifier si l'utilisateur existe
+// Check if the user exists
 $stmt = $db->prepare("SELECT * FROM users WHERE username = :username");
 $stmt->execute([':username' => $username]);
 $user = $stmt->fetch(PDO::FETCH_ASSOC);

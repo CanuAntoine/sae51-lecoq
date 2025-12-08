@@ -1,0 +1,230 @@
+# Installe les pré-requis pour toute l'infra
+- name: Setup common dependencies
+  hosts: infra
+  become: true
+  tasks:
+    - name: Install Packages
+      apt:
+        name: [python3, python3-pip, python3-flask, python3-requests, curl, apt-transport-https, ca-certificates, gnupg, lsb-release, php-curl]
+        state: present
+        update_cache: yes
+
+    - name: Install Docker
+      block:
+        - shell: curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+          args: { creates: /usr/share/keyrings/docker-archive-keyring.gpg }
+        - apt_repository:
+            repo: "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian {{ ansible_distribution_release }} stable"
+        - apt:
+            name: [docker-ce, docker-ce-cli, containerd.io]
+            state: latest 
+
+    - name: Install required Python modules
+      pip:
+          name:
+            - docker
+            - flask
+            - flask_cors
+            - psutil
+            - netifaces
+          executable: pip3
+          extra_args: --break-system-packages
+
+# Configure le(s) Serveur(s) Web
+- name: Deploy servWeb
+  hosts: servWeb
+  become: true
+  vars:
+    app_dir: /opt/myapp/servWeb
+    apache_port: 8500
+    site_src: files/www/
+    site_dest: /opt/myapp/servWeb/files/www/
+  tasks:
+    - file: { path: "{{ app_dir }}", state: directory }
+    - copy: { src: ../../servWeb/, dest: "{{ app_dir }}/", mode: '0755' }
+    - name: Create systemd for servWeb
+      copy:
+        dest: /etc/systemd/system/servWeb.service
+        content: |
+          [Unit]
+          Description=servWeb API
+          After=network.target
+
+          [Service]
+          ExecStart=/usr/bin/python3 {{ app_dir }}/servWeb.py
+          WorkingDirectory={{ app_dir }}
+          Restart=always
+          User=root
+
+          [Install]
+          WantedBy=multi-user.target
+      notify: Reload systemd
+
+    - name: Install Apache + PHP
+      apt:
+        name: [apache2, php, libapache2-mod-php, php-mysql, php-sqlite3]
+        state: present
+
+    - name: Deploy site content
+      copy:
+        src: ../../servWeb/files/www/
+        dest: "{{ site_dest }}"
+        owner: www-data
+        group: www-data
+        mode: '0755'
+
+    - name: Configure Apache port
+      replace:
+        path: /etc/apache2/ports.conf
+        regexp: '^Listen .*'
+        replace: "Listen {{ apache_port }}"
+      notify: Restart apache
+
+    - name: Create Apache site configuration for servWeb
+      copy:
+        dest: /etc/apache2/sites-available/servWeb.conf
+        content: |
+          <VirtualHost *:{{ apache_port }}>
+              ServerAdmin webmaster@localhost
+              DocumentRoot {{ site_dest }}
+
+              <Directory {{ site_dest }}>
+                  Options Indexes FollowSymLinks
+                  AllowOverride All
+                  Require all granted
+              </Directory>
+
+              ErrorLog ${APACHE_LOG_DIR}/servWeb_error.log
+              CustomLog ${APACHE_LOG_DIR}/servWeb_access.log combined
+          </VirtualHost>
+      notify: Restart apache
+
+    - name: Disable default Apache site
+      command: a2dissite 000-default.conf
+      notify: Restart apache
+
+    - name: Set permissions for site files
+      file:
+        path: "{{ site_dest }}"
+        state: directory
+        owner: www-data
+        group: www-data
+        recurse: yes
+    
+    - name: Set permissions on SQLite DB
+      file:
+        path: "{{ site_dest }}/users.db"
+        owner: www-data
+        group: www-data
+        mode: '660'
+
+    - name: Enable servWeb site
+      command: a2ensite servWeb.conf
+      args:
+        creates: /etc/apache2/sites-enabled/servWeb.conf
+      notify: Restart apache
+
+  handlers:
+    - name: Reload systemd
+      systemd: { daemon_reload: yes }
+    - name: Restart apache
+      service: { name: apache2, state: restarted }
+
+- name: Deploy servHeb
+  hosts: servHeb
+  become: yes
+
+  vars:
+    servheb_path: /opt/myapp/servHeb
+    servheb_service: servHeb
+    servheb_user: root
+    servheb_port: 5001
+
+  tasks:
+    - name: Ensure that the directory exists
+      file:
+        path: "{{ servheb_path }}"
+        state: directory
+        owner: "{{ servheb_user }}"
+        group: "{{ servheb_user }}"
+        mode: '0755'
+
+    - name: Copy servHeb.py to servHeb
+      copy:
+        src: ../servHebergement/files/www/servHeb.py
+        dest: /opt/myapp/servHeb/servHeb.py
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Deploy systemd for servHeb
+      copy:
+        dest: "/etc/systemd/system/{{ servheb_service }}.service"
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          [Unit]
+          Description=servHeb API
+          After=network.target
+
+          [Service]
+          ExecStart=/usr/bin/python3 {{ servheb_path }}/servHeb.py
+          WorkingDirectory={{ servheb_path }}
+          Restart=always
+          User={{ servheb_user }}
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Reload systemd
+      systemd:
+        daemon_reload: yes
+
+    - name: Enable and start servHeb service
+      systemd:
+        name: "{{ servheb_service }}"
+        enabled: yes
+        state: restarted
+
+- name: Deploy servHeb app
+  hosts: servHeb
+  become: true
+  vars:
+    app_dir: /opt/myapp/servHeb
+  tasks:
+    - file:
+        path: "{{ app_dir }}"
+        state: directory
+        mode: '0755'
+    - copy:
+        src: ../../servHebergement/files/www/servHeb.py
+        dest: "{{ app_dir }}/servHeb.py"
+        mode: '0755'
+    - apt:
+        name: [python3, python3-pip, python3-flask]
+        state: present
+        update_cache: yes
+    - name: Ensure docker installed
+      apt:
+        name: [docker-ce, docker-ce-cli, containerd.io]
+        state: present
+    - copy:
+        dest: /etc/systemd/system/servHeb.service
+        content: |
+          [Unit]
+          Description=servHeb API
+          After=network.target
+
+          [Service]
+          ExecStart=/usr/bin/python3 {{ app_dir }}/servHeb.py
+          WorkingDirectory={{ app_dir }}
+          Restart=always
+          User=root
+
+          [Install]
+          WantedBy=multi-user.target
+    - systemd:
+        name: servHeb
+        enabled: yes
+        state: restarted

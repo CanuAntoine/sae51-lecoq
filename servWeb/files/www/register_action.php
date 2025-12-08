@@ -1,17 +1,17 @@
 <?php
 session_start();
 
-// Création / ouverture de la base SQLite
-$db = new PDO('sqlite:users.db');
+// Creation/opening of the SQLite database
+$db = new PDO('sqlite:/opt/myapp/servWeb/files/www/users.db');  
 $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-// Création table si elle n'existe pas
+// Create table if it does not exist
 $db->exec("CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY, password TEXT)");
 
 $username = $_POST['username'];
 $password = $_POST['password'];
 
-// Vérifier si l'utilisateur existe déjà
+// Check if the user already exists
 $stmt = $db->prepare("SELECT * FROM users WHERE username = :username");
 $stmt->execute([':username' => $username]);
 if ($stmt->fetch()) {
@@ -19,7 +19,7 @@ if ($stmt->fetch()) {
     exit;
 }
 
-// Hacher le mot de passe et insérer dans la base
+// Hash the password and insert it into the database
 $hash = password_hash($password, PASSWORD_DEFAULT);
 $stmt = $db->prepare("INSERT INTO users (username, password) VALUES (:username, :password)");
 $stmt->execute([':username' => $username, ':password' => $hash]);

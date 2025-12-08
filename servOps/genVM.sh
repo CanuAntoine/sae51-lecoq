@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#Vérification de l'existence de VirtualBox
+#Vbox installation check
 if ! command -v vboxmanage > /dev/null 2>&1; then 
     echo "Erreur : VBoxManage n'est pas installé ou est introuvable"
     exit 1
@@ -12,7 +12,11 @@ DD=8000
 CPU=1
 VRAM=32
 
-#Vérification si les variables sont bien des integer
+#Arguments
+action="$1"
+vm_name="$2"
+
+#Variables types check
 for var in RAM DD CPU VRAM; do
     value=${!var}
     if ! [[ $value =~ ^[0-9]+$ ]]; then
@@ -21,29 +25,20 @@ for var in RAM DD CPU VRAM; do
     fi
 done
 
-#Récupération des arguments
-action="$1"
-vm_name="$2"
-arg3="$3"
-arg4="$4"
-arg5="$5"
+#Functions
+create_vm() {
+    local action="$1"
+    local vm_name="$2"
+    local user_vm="$3"
+    local pass_vm="$4"
 
-#Création d'une nouvelle VM
-if [ "$action" == "N" ] && [ $# -eq 4 ]; then
-
-    #Utilisation des arguments
-    user_vm=$3
-    pass_vm=$4
-
-    #Création VM
     echo "La machine '$vm_name' en cours de création..."
     vboxmanage createvm --name "$vm_name" \
         --ostype "Debian_64" \
-        --register > /dev/null 2>&1
-    if [ $? -ne 0 ]; then 
-        echo "Attention : la machine '$vm_name' existe déjà ou une erreur est survenue."
-        exit 1
-    fi
+        --register > /dev/null 2>&1 || {
+            echo "Attention : la machine '$vm_name' existe déjà ou une erreur est survenue."
+            exit 1
+        }
 
     iso_path="$HOME/debian-12.12.0-amd64-netinst.iso"
     iso_url="https://cdimage.debian.org/cdimage/archive/12.12.0/amd64/iso-cd/debian-12.12.0-amd64-netinst.iso"
@@ -51,7 +46,7 @@ if [ "$action" == "N" ] && [ $# -eq 4 ]; then
     if [ -f "$iso_path" ]; then
         echo "ISO déjà présente : $iso_path"
     else
-        echo "⬇Téléchargement de Debian 12.12.0..."
+        echo "⬇ Téléchargement de Debian 12.12.0..."
         wget -q --show-progress "$iso_url" -O "$iso_path" || {
             echo "Erreur : impossible de télécharger l'ISO"
             exit 1
@@ -59,33 +54,30 @@ if [ "$action" == "N" ] && [ $# -eq 4 ]; then
         echo "Téléchargement terminé : $iso_path"
     fi
 
-    #Modifications caractéristiques VM
     vboxmanage modifyvm "$vm_name" \
         --memory $RAM --cpus $CPU \
         --nic1 nat --nic2 none \
         --boot1 disk --boot2 none --boot3 none --boot4 none \
         --vram $VRAM --graphicscontroller vmsvga \
-    || { echo "Erreur : Impossible de modifier les caractéristique de la machine"; exit 1; }
+        || { echo "Erreur : Impossible de modifier la VM"; exit 1; }
 
-    #Ajout du DD
-    vboxmanage createmedium --filename "/home/$USER/VirtualBox VMs/$vm_name/$vm_name.vdi" --size $DD --variant Standard > /dev/null 2>&1 \
-        || { echo "Erreur : Impossible de créer le Disque Dur"; exit 1; }
+    vboxmanage createmedium --filename "/home/$USER/VirtualBox VMs/$vm_name/$vm_name.vdi" \
+        --size $DD --variant Standard > /dev/null 2>&1 \
+        || { echo "Erreur : Impossible de créer le disque"; exit 1; }
 
-    #Ajout du controlleur SATA
-    vboxmanage storagectl "$vm_name" --name "SATA Controller" --add sata --controller IntelAhci > /dev/null 2>&1  \
-        || { echo "Erreur: Impossible de créer le contrôleur SATA"; exit 1; }
-        
-    #Attachement du DD
-    vboxmanage storageattach "$vm_name" --storagectl "SATA Controller" --port 0 --device 0 --type hdd --medium "/home/$USER/VirtualBox VMs/$vm_name/$vm_name.vdi" > /dev/null 2>&1 \
-        || { echo "Erreur : Impossible d'attacher le disque dur à la VM"; exit 1; }
+    vboxmanage storagectl "$vm_name" --name "SATA Controller" --add sata \
+        --controller IntelAhci > /dev/null 2>&1 \
+        || { echo "Erreur : Impossible de créer le contrôleur SATA"; exit 1; }
 
-    #Création métadonnées
-    vboxmanage setextradata "$vm_name" "CreationDate" "$(TZ=Europe/Paris date +"%Y-%m-%d %H:%M:%S")" \
-        || { echo "Erreur : Impossible d'ajouter la date de création"; exit 1; }
-    vboxmanage setextradata "$vm_name" "CreatedBy" "$USER" \
-        || { echo "Erreur : Impossible d'ajouter l'information de l'utilisateur"; exit 1; }
+    vboxmanage storageattach "$vm_name" --storagectl "SATA Controller" \
+        --port 0 --device 0 --type hdd \
+        --medium "/home/$USER/VirtualBox VMs/$vm_name/$vm_name.vdi" \
+        > /dev/null 2>&1 \
+        || { echo "Erreur : Impossible d'attacher le disque"; exit 1; }
 
-    # Installation automatisée de l'OS
+    vboxmanage setextradata "$vm_name" "CreationDate" "$(TZ=Europe/Paris date +"%Y-%m-%d %H:%M:%S")"
+    vboxmanage setextradata "$vm_name" "CreatedBy" "$USER"
+
     vboxmanage unattended install "$vm_name" \
         --iso="$iso_path" \
         --user="$user_vm" \
@@ -95,65 +87,45 @@ if [ "$action" == "N" ] && [ $# -eq 4 ]; then
         --install-additions \
         --start-vm=gui \
         --package-selection-adjustment minimal \
-    || { echo "Erreur : Installation automatisée échouée"; exit 1; }
-w
-    echo "VM créée avec succès; IP host-only à configurer !"
+        > /dev/null 2>&1 || { echo "Erreur : Installation automatisée échouée"; exit 1; }
+
+    echo "VM créée avec succès"
     exit 0
-fi
+}
 
+init_network() {
+    local action="$1"
+    local vm_name="$2"
+    local user_vm="$3"
+    local pass_vm="$4"
 
-#Initialiser le réseau + procédure à suivre
-if [ "$action" == "I" ] && [ $# -eq 4 ]; then
-
-    #Utilisation des arguments
-    user_vm=$3
-    pass_vm=$4
+    wait_vmUp "$vm_name" "$user_vm" "$pass_vm"
 
     #Ajout des droits sudo à l'utilisateur et installer les paquets nécessaires
     read -p "Se connecter à la machine virtuelle"
     read -p "Ouvrir un terminal et se mettre en mode root (commande : su)"
     echo "Installer les paquests nécessaires"
     read -p "   apt update" 
-    read -p "   apt install sudo openssh-server netplan.io vim-y"
+    read -p "   apt install -y sudo openssh-server netplan.io vim"
     read -p "Ajouter les droits sudo à l'utilisateur : sudo usermod -aG sudo $user_vm"    
 
-    #Initialisation réseau
-    if vboxmanage list runningvms | grep -q "\"$vm_name\""; then 
+    if vboxmanage list runningvms | grep -q "\"$vm_name\""; then
         echo "Arrêt de la VM..."
         vboxmanage controlvm "$vm_name" poweroff > /dev/null 2>&1
-        if ! [ $? == 0 ]; then 
-            echo "Erreur : Impossible d'arrêter la machine"
-            exit 1
-        fi
         sleep 10
-        echo "Machine virtuelle arrêté !"
     fi
-            
-    echo "Configuration de l'interface host-only..."
+
+    echo "Configuration interface host-only..."
     vboxmanage modifyvm "$vm_name" --nic2 hostonly --hostonlyadapter2 vboxnet0 \
-        || { echo "Erreur : Impossible de modifier nic2"; exit 1; }
+        || { echo "Erreur : Impossible de modifier NIC2"; exit 1; }
 
-    vboxmanage startvm "$vm_name" --type gui > /dev/null 2>&1
-    echo "Démarrage de $vm_name..."
-    if ! [ $? == 0 ]; then 
-        echo "Erreur : Impossible de démarrer la machine"
+    vboxmanage startvm "$vm_name" --type gui > /dev/null 2>&1 || {
+        echo "Erreur : Impossible de démarrer la VM"
         exit 1
-    fi
-    echo "$vm_name démarré !"
+    }
 
-    #Attente Guest Additions
-    echo "Attente que Guest Additions soit totalement actif..."
-    while true; do
-        GA_STATUS=$(vboxmanage guestproperty get "$vm_name" "/VirtualBox/GuestAdd/Version" 2>/dev/null | awk '{print $2}')
-        if [ -n "$GA_STATUS" ]; then
-            vboxmanage guestcontrol "$vm_name" run --username "$user_vm" --password "$pass_vm" --exe "/bin/true" >/dev/null 2>&1
-            if [ $? -eq 0 ]; then
-                echo "Guest Additions prêtes !"
-                break
-            fi
-        fi
-        sleep 5
-    done
+    echo "$vm_name démarrée"
+    wait_vmUp "$vm_name" "$user_vm" "$pass_vm"
 
     #Procédure à Suivre
     echo "Reconnectez vous"
@@ -162,7 +134,7 @@ if [ "$action" == "I" ] && [ $# -eq 4 ]; then
     echo "Saisir les commande :"
     read -p "   sudo chmod 600 /etc/netplan/01-netcfg.yaml"
     read -p "   sudo netplan generate"
-    read -p "   sudo netplan apply"
+    read -p "   sudo netplan apply #si une erreur apparaît pas d'inquiétude"
 
     read -p "Récupérer l'adresse IP en 192.168.56.x avec : ip addr show"
     read -p "Si vous n'avez pas d'adresse IP, alors faites : sudo reboot"
@@ -170,7 +142,7 @@ if [ "$action" == "I" ] && [ $# -eq 4 ]; then
     read -p "Modifier le fichier /etc/netplan/01-netcfg.yaml et y copier network.txt en modifiant <ip> par la bonne adresse IP"
     echo "Saisir les commande :"
     read -p "   sudo netplan generate"
-    read -p "   sudo netplan apply"
+    read -p "   sudo netplan apply #si une erreur apparaît pas d'inquiétude"
     read -p "   sudo ssh-keygen -A"
     read -p "   sudo systemctl restart ssh"
     read -p "   sudo systemctl status ssh"
@@ -183,99 +155,129 @@ if [ "$action" == "I" ] && [ $# -eq 4 ]; then
 
     echo "Vous pouvez maintenant utiliser la vm"
     exit 0
+}
 
-fi
+start_vm() {
+    vboxmanage startvm "$vm_name" --type gui > /dev/null 2>&1 || {
+        echo "Erreur : Impossible de démarrer la VM"
+        exit 1
+    }
+    echo "VM démarrée"
+    exit 0
+}
 
-#Vérification nombre argumenents
-if [ $# -eq 2 ] || [ $# -eq 1 ]; then
+stop_vm() {
+    echo "Arrêt de la VM..."
+    vboxmanage controlvm "$vm_name" poweroff > /dev/null 2>&1 || {
+        echo "Erreur : Impossible d'arrêter la VM"
+        exit 1
+    }
+    echo "VM arrêtée"
+    exit 0
+}
 
-    #Démarrage VM
-    if [ "$action" == "D" ]; then
-        vboxmanage startvm "$vm_name" --type gui > /dev/null 2>&1
-        if ! [ $? == 0 ]; then 
-            echo "Erreur : Impossible de démarrer la machine"
+delete_vm() {
+
+    if vboxmanage list vms | grep -q "\"$vm_name\""; then
+        if vboxmanage list runningvms | grep -q "\"$vm_name\""; then
+            echo "Arrêt de la VM..."
+            vboxmanage controlvm "$vm_name" poweroff > /dev/null 2>&1
+            sleep 10
+        fi
+
+        echo "Suppression de la VM..."
+        vboxmanage unregistervm "$vm_name" --delete > /dev/null 2>&1 || {
+            echo "Erreur : Impossible de supprimer la VM"
             exit 1
-        fi
-        echo "Machine virtuelle démarré !"
-        exit 0
+        }
     fi
 
-    #Arrêt VM
-    if [ "$action" == "A" ]; then
-        echo "Arrêt de la VM..."
-        vboxmanage controlvm "$vm_name" poweroff > /dev/null 2>&1
-        if ! [ $? == 0 ]; then 
-            echo "Erreur : Impossible d'arrêter la machine"
-            exit 1
-        fi
-        echo "Machine virtuelle arrêté !"
-        exit 0
-    fi
+    vm_files=$(find ~/VirtualBox\ VMs/ -name "*$vm_name*" 2>/dev/null)
+    [ -n "$vm_files" ] && rm -rf "$vm_files"
 
-    #Suppression VM
-    if [ "$action" == "S" ]; then
-        if vboxmanage list vms | grep -q "\"$vm_name\""; then
-            if vboxmanage list runningvms | grep -q "\"$vm_name\""; then 
-                echo "Arrêt de la VM..."
-                vboxmanage controlvm "$vm_name" poweroff > /dev/null 2>&1
-                if ! [ $? == 0 ]; then 
-                    echo "Erreur : Impossible d'arrêter la machine"
-                    exit 1
-                fi
-                sleep 10
-                echo "Machine virtuelle arrêté !"
+    echo "VM supprimée"
+    exit 0
+}
+
+list_vms() {
+    temp_file=$(mktemp)
+    vboxmanage list vms > "$temp_file"
+
+    echo -e "Liste des VMs :\n"
+
+    while read -r line; do
+        vm=$(echo "$line" | cut -d '"' -f2)
+        date_creation=$(vboxmanage getextradata "$vm" "CreationDate" | cut -d' ' -f2-)
+        created_by=$(vboxmanage getextradata "$vm" "CreatedBy" | cut -d' ' -f2-)
+
+        echo "VM : $vm"
+        echo "  Créée le : ${date_creation:-Unknown}"
+        echo "  Par      : ${created_by:-Unknown}"
+        echo
+    done < "$temp_file"
+
+    rm "$temp_file"
+    exit 0
+}
+
+wait_vmUp() {
+    local vm_name="$1"
+    local user_vm="$2"
+    local pass_vm="$3"
+
+    echo "Attente que la VM soit totalement active..."
+
+    while true; do
+        GA_STATUS=$(vboxmanage guestproperty get "$vm_name" "/VirtualBox/GuestAdd/Version" 2>/dev/null | awk '{print $2}')
+
+        if [ -n "$GA_STATUS" ]; then
+            vboxmanage guestcontrol "$vm_name" run \
+                --username "$user_vm" \
+                --password "$pass_vm" \
+                --exe "/bin/true" >/dev/null 2>&1
+
+            if [ $? -eq 0 ]; then
+                echo "VM prête !"
+                break
             fi
-            echo "Suppresion de la VM..."
-            vboxmanage unregistervm "$vm_name" --delete > /dev/null 2>&1
-            if ! [ $? == 0 ]; then 
-                echo "Erreur : Impossible de supprimer la machine"
-                exit 1
-            fi
-            echo "Machine virtuelle supprimé !"
         fi
 
-        #Supprimer les fichiers de la VM s'il en reste des traces
-        vm_files=$(find ~/VirtualBox\ VMs/ -name "*$vm_name*" 2>/dev/null)
-        if [ -n "$vm_files" ]; then
-            rm -rf "$vm_files"
-            echo "Suppresion des fichiers de la VM"
-        fi
-        exit 0
-    fi
+        sleep 5
+    done
+}
 
-    #Lister les VMs
-    if [ "$action" == "L" ]; then
-        temp_file=$(mktemp)
-        vboxmanage list vms > "$temp_file"
+#Action check
+valid_action="N D A S L I"
 
-        echo -e "VMs list and metadata :\n"
-        while read -r line; do
-            vm=$(echo "$line" | cut -d '"' -f2)
-            date_creation=$(vboxmanage getextradata "$vm" "CreationDate" 2>/dev/null | cut -d' ' -f2-)
-            created_by=$(vboxmanage getextradata "$vm" "CreatedBy" 2>/dev/null | cut -d' ' -f2-)
-            [ -z "$date_creation" ] && date_creation="Unknow"
-            [ -z "$created_by" ] && created_by="Unknow"
-        
-            if [ $# == 1 ]; then
-                echo "VM: $vm"
-                echo "  Creation : $date_creation"
-                echo -e "  By : $created_by \n"
-            fi
-        done < "$temp_file"
-        if [ $# == 2 ]; then
-            echo "VM: $vm_name"
-            echo "  Creation: $date_creation"
-            echo -e "   By: $created_by \n"
-        fi
-        rm "$temp_file"
-        exit 0
-    fi
-    
-    #Erreur : Commande inconnué
-    echo "Commande incorrect"
+if ! [[ " $valid_action " =~ " $action " ]]; then
+    echo "Erreur : Action invalide '$action'"
+    echo "Actions possibles : N (Nouvelle VM), D (Démarrer), A (Arrêter), S (Supprimer), L (Lister), I (Initialiser réseau)"
     exit 1
 fi
 
-#Erreur : Nombre arguments 
-echo "Nombre d'arguments incorrect"
-exit 1
+#Using the functions
+case "$action" in
+
+    N) [ $# -eq 4 ] || { echo "Usage : N <vm> <user> <pass>"; exit 1; }
+        create_vm "$@"
+        ;;
+
+    I) [ $# -eq 4 ] || { echo "Usage : I <vm> <user> <pass>"; exit 1; }
+    init_network "$@"
+    ;;
+
+    D) [ $# -eq 2 ] || { echo "Usage : D <vm>"; exit 1; }
+       start_vm
+       ;;
+
+    A) [ $# -eq 2 ] || { echo "Usage : A <vm>"; exit 1; }
+       stop_vm
+       ;;
+
+    S) [ $# -eq 2 ] || { echo "Usage : S <vm>"; exit 1; }
+       delete_vm
+       ;;
+
+    L) list_vms ;;
+    *) echo "Action inconnue" ; exit 1 ;;
+esac
