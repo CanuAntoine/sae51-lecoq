@@ -4,6 +4,10 @@
 [servHeb]
 192.168.56.111 ansible_user=ansible ansible_ssh_private_key_file=~/.ssh/keys-ansible_rsa ansible_python_interpreter=/usr/bin/python3
 
+[servOps]
+192.168.56.112 ansible_user=ansible ansible_ssh_private_key_file=~/.ssh/keys-ansible_rsa ansible_python_interpreter=/usr/bin/python3
+
 [infra:children]
 servHeb
 servWeb
+servOps

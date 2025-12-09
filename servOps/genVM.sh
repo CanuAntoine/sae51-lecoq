@@ -130,7 +130,7 @@ init_network() {
     #Procédure à Suivre
     echo "Reconnectez vous"
     
-    read -p "Créer le fichier /etc/netplan/01-netcfg.yaml et y copier network-init.txt"
+    read -p "Créer le fichier /etc/netplan/01-netcfg.yaml et y copier servOps/network-init.txt"
     echo "Saisir les commande :"
     read -p "   sudo chmod 600 /etc/netplan/01-netcfg.yaml"
     read -p "   sudo netplan generate"
@@ -139,7 +139,7 @@ init_network() {
     read -p "Récupérer l'adresse IP en 192.168.56.x avec : ip addr show"
     read -p "Si vous n'avez pas d'adresse IP, alors faites : sudo reboot"
 
-    read -p "Modifier le fichier /etc/netplan/01-netcfg.yaml et y copier network.txt en modifiant <ip> par la bonne adresse IP"
+    read -p "Modifier le fichier /etc/netplan/01-netcfg.yaml et y copier servOps/   network.txt en modifiant <ip> par la bonne adresse IP"
     echo "Saisir les commande :"
     read -p "   sudo netplan generate"
     read -p "   sudo netplan apply #si une erreur apparaît pas d'inquiétude"
@@ -153,7 +153,7 @@ init_network() {
     read -p "   Serveurs DNS : cat /etc/resolv.conf"
     read -p "   Ping passerelle : ping 192.168.56.1"
 
-    echo "Vous pouvez maintenant utiliser la vm"
+    echo "Vous pouvez maintenant continuer la procédure!"
     exit 0
 }
 

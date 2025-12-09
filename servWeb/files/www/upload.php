@@ -11,9 +11,9 @@ if(!$serviceId) die("service_id manquant");
 <h1>Upload pour le service <?php echo htmlspecialchars($serviceId); ?></h1>
 
 <form method="post" action="send_to_servheb.php" enctype="multipart/form-data">
-    <input type="hidden" name="service_id" value="<?php echo htmlspecialchars($serviceId); ?>">
+    <input type="hidden" name="service_id" value="<?php echo htmlspecialchars($serviceId); ?>" multiple required accept=".php">
     <label>Fichiers (html, php, css, js) :</label><br>
-    <input type="file" name="files[]" multiple required><br><br>
+    <input type="file" name="files[]" multiple required accept=".html"><br><br>
     <button type="submit">Uploader & Déployer</button>
 </form>
 

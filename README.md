@@ -86,9 +86,9 @@ Vous devez intialiser la VM après installation pour qu'elle puisse est impléme
 ./servOps/genVM.sh I <nom_vm> <user> <pwd>
 ```
 
-Maintenant que la première partie de l'initialisation est terminée, vous pouvez ajouter la nouvelle machine dans le fichier : **[`hosts`](./servWeb/servWeb-ansible/inventories/hosts)**  
+Maintenant que la première partie de l'initialisation est terminée, vous pouvez ajouter la nouvelle machine dans le fichier : **[`hosts`](./inventories/hosts)**  
     
-PS : Vous pouvez vous baser sur le fichier **[`hosts-examples.txt`](./servWeb/servWeb-ansible/inventories/hosts-examples.txt)** présents dans le même répertoire
+PS : Vous pouvez vous baser sur le fichier **[`hosts-examples.txt`](./inventories/hosts-examples.txt)** présents dans le même répertoire
 
 Si votre machine gèrera les service d'hébergement il faut également renseigner son IP dans **[`config.env`](./servWeb/files/www/config.env)**
 

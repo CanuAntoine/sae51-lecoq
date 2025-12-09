@@ -2,6 +2,15 @@ from flask import Flask, request, jsonify
 import requests
 
 app = Flask(__name__)
+DB_PATH = './files/www/users.db'
+
+def users_exist():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) FROM users")
+    count = cursor.fetchone()[0]
+    conn.close()
+    return count > 0
 
 @app.route('/send', methods=['POST'])
 def send():
