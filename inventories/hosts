@@ -1,11 +1,11 @@
 [servWeb]
-192.168.56.110 ansible_user=ansible ansible_ssh_private_key_file=~/.ssh/keys-ansible_rsa ansible_python_interpreter=/usr/bin/python3
+servweb_01 ansible_host=192.168.56.110 ansible_user=ansible ansible_ssh_private_key_file=~/.ssh/keys-ansible_rsa ansible_python_interpreter=/usr/bin/python3
 
 [servHeb]
-192.168.56.111 ansible_user=ansible ansible_ssh_private_key_file=~/.ssh/keys-ansible_rsa ansible_python_interpreter=/usr/bin/python3
+servheb_01 ansible_host=192.168.56.111 ansible_user=ansible ansible_ssh_private_key_file=~/.ssh/keys-ansible_rsa ansible_python_interpreter=/usr/bin/python3
 
 [servOps]
-192.168.56.112 ansible_user=ansible ansible_ssh_private_key_file=~/.ssh/keys-ansible_rsa ansible_python_interpreter=/usr/bin/python3
+servops_01 ansible_host=192.168.56.112 ansible_user=ansible ansible_ssh_private_key_file=~/.ssh/keys-ansible_rsa ansible_python_interpreter=/usr/bin/python3
 
 [infra:children]
 servHeb

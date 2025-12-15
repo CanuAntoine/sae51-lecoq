@@ -1,0 +1,33 @@
+upstream servheb_backend {
+{% for host in groups['servHeb'] %}
+    server {{ hostvars[host].ansible_host }}:5001;
+{% endfor %}
+}
+
+server {
+    listen 80;
+
+    location / {
+        proxy_pass http://127.0.0.1:8500;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    
+    location /api/ {
+    proxy_pass http://servheb_backend/;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+
+    proxy_set_header Content-Type $http_content_type;
+
+    client_max_body_size 100M;
+    proxy_buffering off;
+    proxy_http_version 1.1;
+    proxy_set_header Connection "";
+    proxy_request_buffering off;
+    }
+}

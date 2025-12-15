@@ -54,7 +54,7 @@ def create_service():
 
         # Save uploaded files
         # Accept multiple files under field name 'files[]' or 'files'
-        files = []
+        files = list(request.files.values())
         if 'files[]' in request.files:
             files = request.files.getlist('files[]')
         elif 'files' in request.files:

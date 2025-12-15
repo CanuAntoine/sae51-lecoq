@@ -15,9 +15,7 @@ $user = $_SESSION['username'];
 $serviceId = $_POST['service_id'] ?? '';
 if(!$serviceId) die("service_id manquant");
 
-$servHebIp   = getenv('SERVHEB_IP') ?: '127.0.0.1';
-$servHebPort = getenv('SERVHEB_PORT') ?: '5001';
-$servHebUrl  = "http://{$servHebIp}:{$servHebPort}/create_service";
+$servHebUrl = "http://127.0.0.1/api/create_service";
 
 $db = new PDO('sqlite:services.db'); 
 $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
@@ -33,7 +31,7 @@ $post = [
 ];
 foreach($_FILES['files']['tmp_name'] as $i => $tmp){
     $name = $_FILES['files']['name'][$i];
-    $post["files[$i]"] = new CURLFile($tmp, mime_content_type($tmp), $name);
+    $post["files[]"] = new CURLFile($tmp, mime_content_type($tmp), $name);
 }
 
 curl_setopt($ch, CURLOPT_URL, $servHebUrl);

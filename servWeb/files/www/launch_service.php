@@ -31,7 +31,7 @@ $data = json_encode([
     "html" => $html_content
 ]);
 
-$ch = curl_init("http://192.168.56.107:5001/create_service");
+$ch = curl_init("http://localhost/api/create_service");
 curl_setopt($ch, CURLOPT_POST, 1);
 curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
 curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json'));

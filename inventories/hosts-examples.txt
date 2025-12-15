@@ -1,5 +1,5 @@
 [<servGroup>]
-<ip_address> ansible_user=ansible ansible_ssh_private_key_file=~/.ssh/id_rsa_sae51 ansible_python_interpreter=/usr/bin/python3
+<serv_name> ansible_host=<ip_address> ansible_user=ansible ansible_ssh_private_key_file=~/.ssh/id_rsa_sae51 ansible_python_interpreter=/usr/bin/python3
 
 [infra:children]
 <servGroup>

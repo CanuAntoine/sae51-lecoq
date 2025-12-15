@@ -12,8 +12,10 @@ def users_exist():
     conn.close()
     return count > 0
 
-@app.route('/send', methods=['POST'])
-def send():
+@app.route('/create_service', methods=['POST'])
+def create_service():
+    if not users_exist():
+        return jsonify({"error": "Aucun utilisateur enregistré"}), 400
     data = request.json 
     message = data.get('message')
     user_id = data.get('userId')

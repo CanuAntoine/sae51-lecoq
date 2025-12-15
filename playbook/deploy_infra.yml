@@ -22,6 +22,7 @@
           - lsb-release
           - wget
           - tar
+          - ufw
         state: present
         update_cache: yes
 
@@ -107,6 +108,31 @@
         name: node_exporter
         enabled: true
         state: started
+    
+    - name: Reset ufw
+      ufw:
+        state: reset
+
+    - name: Default firewall policy
+      ufw:
+        direction: outgoing
+        policy: allow
+
+    - name: Allow SSH 
+      ufw:
+        rule: allow
+        port: 22
+        proto: tcp
+
+    - name: Allow node_exporter
+      ufw:
+        rule: allow
+        port: 9100
+        proto: tcp
+
+    - name: Enable ufw
+      ufw:
+        state: enabled
 
 # Configure le(s) Serveur(s) Ops
 - name: Setup monitoring stack on servOps
@@ -151,6 +177,23 @@
       notify:
         - restart prometheus
 
+    - name: Configure UFW firewall
+      ufw:
+        rule: "{{ item.rule | default(omit) }}"
+        port: "{{ item.port | default(omit) }}"
+        direction: "{{ item.direction | default(omit) }}"
+        policy: "{{ item.policy | default(omit) }}"
+        state: "{{ item.state | default(omit) }}"
+      loop:
+        - { state: reset }
+        - { direction: incoming, policy: deny }
+        - { direction: outgoing, policy: allow }
+        - { rule: allow, port: 22 }
+        - { rule: allow, port: 9090 }
+        - { rule: allow, port: 9100 }
+        - { rule: allow, port: 3000 }
+        - { state: enabled }
+
   handlers:
     - name: restart prometheus
       systemd:
@@ -188,9 +231,9 @@
           WantedBy=multi-user.target
       notify: Reload systemd
 
-    - name: Install Apache + PHP
+    - name: Install Apache + PHP + nginx
       apt:
-        name: [apache2, php, libapache2-mod-php, php-mysql, php-sqlite3]
+        name: [apache2, php, libapache2-mod-php, php-mysql, php-sqlite3, nginx]
         state: present
 
     - name: Deploy site content
@@ -252,11 +295,53 @@
         creates: /etc/apache2/sites-enabled/servWeb.conf
       notify: Restart apache
 
+    - name: Ensure Nginx sites-available directory exists
+      file:
+        path: /etc/nginx/sites-available
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Copy template nginx to servHeb
+      template:
+        src: ../templates/servheb_proxy.conf.j2
+        dest: /etc/nginx/sites-available/servheb_proxy.conf
+      notify: Restart nginx
+
+    - name: Enable nginx configuration
+      file:
+        src: /etc/nginx/sites-available/servheb_proxy.conf
+        dest: /etc/nginx/sites-enabled/servheb_proxy.conf
+        state: link
+
+    - name: Disable nginx default configuration
+      file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+
+    - name: Configure UFW firewall
+      ufw:
+        rule: "{{ item.rule | default(omit) }}"
+        port: "{{ item.port | default(omit) }}"
+        direction: "{{ item.direction | default(omit) }}"
+        policy: "{{ item.policy | default(omit) }}"
+        state: "{{ item.state | default(omit) }}"
+      loop:
+        - { state: reset }
+        - { direction: incoming, policy: deny }
+        - { direction: outgoing, policy: allow }
+        - { rule: allow, port: 22 }
+        - { rule: allow, port: 80 }
+        - { state: enabled }
+
   handlers:
     - name: Reload systemd
       systemd: { daemon_reload: yes }
     - name: Restart apache
       service: { name: apache2, state: restarted }
+    - name: Restart nginx
+      service: { name: nginx, state: restarted }
 
 - name: Deploy servHeb
   hosts: servHeb
@@ -314,6 +399,16 @@
         name: "{{ servheb_service }}"
         enabled: yes
         state: restarted
+
+    - ufw: { state: reset }
+    - ufw: { direction: incoming, policy: deny }
+    - ufw: { direction: outgoing, policy: allow }
+    - ufw: { rule: allow, port: 22 }
+    - name: Allow servWeb to access servHeb API
+      ufw:
+        rule: allow
+        from_ip: "{{ hostvars[groups['servWeb'][0]].ansible_host }}"
+        port: 5001
 
 - name: Deploy servHeb app
   hosts: servHeb
