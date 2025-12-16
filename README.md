@@ -4,7 +4,6 @@
 **Date :** Années 2025-2026  
 
 ## Contexte
-...
 Nous sommes du point de vue d'une entreprise du nom de **CanuWebHost** qui propose des services d'hébergement Web pour des clients. 
 
 Si vous souhaitez appliqués cette infrastructure, il faut savoir que toutes les commandes doivent être effectuées depuis le dossier `sae51-lecoq` quand celle-ci sont à effectuer sur la machine hôte.

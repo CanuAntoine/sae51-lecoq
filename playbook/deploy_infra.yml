@@ -108,10 +108,6 @@
         name: node_exporter
         enabled: true
         state: started
-    
-    - name: Reset ufw
-      ufw:
-        state: reset
 
     - name: Default firewall policy
       ufw:
@@ -185,7 +181,6 @@
         policy: "{{ item.policy | default(omit) }}"
         state: "{{ item.state | default(omit) }}"
       loop:
-        - { state: reset }
         - { direction: incoming, policy: deny }
         - { direction: outgoing, policy: allow }
         - { rule: allow, port: 22 }
@@ -231,10 +226,45 @@
           WantedBy=multi-user.target
       notify: Reload systemd
 
-    - name: Install Apache + PHP + nginx
+    - name: Install specifics dependencies
       apt:
-        name: [apache2, php, libapache2-mod-php, php-mysql, php-sqlite3, nginx]
+        name: 
+          - apache2
+          - php
+          - libapache2-mod-php
+          - php-mysql
+          - php-sqlite3
+          - nginx
+          - php-cli
+          - php-curl
+          - php-mbstring
         state: present
+
+    - name: Download Composer installer
+      get_url:
+        url: https://getcomposer.org/installer
+        dest: /tmp/composer-setup.php
+        mode: '0755'
+
+    - name: Install Composer globally
+      command: php /tmp/composer-setup.php --install-dir=/usr/local/bin --filename=composer
+      args:
+        creates: /usr/local/bin/composer
+
+    - name: Copy composer.json
+      copy:
+        src: ../../servWeb/files/composer.json
+        dest: /opt/myapp/servWeb/files/www/composer.json
+        owner: www-data
+        group: www-data
+        mode: '0644'
+
+    - name: Install PHP dependencies via Composer
+      environment:
+        COMPOSER_ALLOW_SUPERUSER: "1"
+      command: composer install --no-dev --optimize-autoloader --no-interaction
+      args:
+        chdir: /opt/myapp/servWeb/files/www
 
     - name: Deploy site content
       copy:
@@ -282,12 +312,13 @@
         group: www-data
         recurse: yes
     
-    - name: Set permissions on SQLite DB
-      file:
+    - name: Ensure SQLite DB exists
+      ansible.builtin.file:
         path: "{{ site_dest }}/users.db"
+        state: touch
         owner: www-data
         group: www-data
-        mode: '660'
+        mode: '0660'
 
     - name: Enable servWeb site
       command: a2ensite servWeb.conf
@@ -328,7 +359,6 @@
         policy: "{{ item.policy | default(omit) }}"
         state: "{{ item.state | default(omit) }}"
       loop:
-        - { state: reset }
         - { direction: incoming, policy: deny }
         - { direction: outgoing, policy: allow }
         - { rule: allow, port: 22 }
@@ -356,6 +386,14 @@
   tasks:
     - name: Ensure that the directory exists
       file:
+        path: /var/www/html/config
+        state: directory
+        owner: www-data
+        group: www-data
+        mode: '0755'
+
+    - name: Ensure that the directory exists
+      file:
         path: "{{ servheb_path }}"
         state: directory
         owner: "{{ servheb_user }}"
@@ -369,6 +407,15 @@
         owner: root
         group: root
         mode: '0755'
+
+    - name: Generate PHP config to ServHeb
+      copy:
+        dest: /var/www/html/config/servheb.json
+        content: |
+          {
+            "host": "{{ ansible_host }}",
+            "port": 5001
+          }
 
     - name: Deploy systemd for servHeb
       copy:
@@ -400,7 +447,6 @@
         enabled: yes
         state: restarted
 
-    - ufw: { state: reset }
     - ufw: { direction: incoming, policy: deny }
     - ufw: { direction: outgoing, policy: allow }
     - ufw: { rule: allow, port: 22 }

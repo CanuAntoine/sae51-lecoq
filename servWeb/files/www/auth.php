@@ -1,30 +1,29 @@
 <?php
 session_start();
 
+require __DIR__ . '/vendor/autoload.php';
+use OTPHP\TOTP;
+
 $db = new PDO('sqlite:/opt/myapp/servWeb/files/www/users.db');
 $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-// Check if the user table exists
-$count = $db->query("SELECT COUNT(*) FROM users")->fetchColumn();
-if ($count == 0) {
-    http_response_code(400);
-    echo "Aucun utilisateur enregistré. <a href='register.php'>Créer un compte</a>";
-    exit;
-}
+$username = $_POST['username'] ?? '';
+$password = $_POST['password'] ?? '';
+$code2fa  = $_POST['totp'] ?? '';
 
-$username = $_POST['username'];
-$password = $_POST['password'];
-
-// Check if the user exists
-$stmt = $db->prepare("SELECT * FROM users WHERE username = :username");
-$stmt->execute([':username' => $username]);
+$stmt = $db->prepare("SELECT * FROM users WHERE username = :u");
+$stmt->execute([':u' => $username]);
 $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-if ($user && password_verify($password, $user['password'])) {
-    $_SESSION['username'] = $username;
-    header("Location: index.php");
-    exit;
-} else {
-    echo "Nom d'utilisateur ou mot de passe incorrect. <a href='index.php'>Retour</a>";
+if (!$user || !password_verify($password, $user['password'])) {
+    die("Nom d'utilisateur ou mot de passe incorrect.");
 }
-?>
+
+$totp = TOTP::create($user['totp_secret']);
+if (!$totp->verify($code2fa)) {
+    die("Code 2FA invalide.");
+}
+
+$_SESSION['username'] = $username;
+header("Location: index.php");
+exit;

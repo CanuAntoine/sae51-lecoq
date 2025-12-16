@@ -6,6 +6,7 @@ session_start();
 <form method="post" action="auth.php">
     Nom d'utilisateur: <input type="text" name="username" required><br>
     Mot de passe: <input type="password" name="password" required><br>
+    Code MFA Google Authenticator : <input type="text" name="totp" required><br>
     <input type="submit" value="Se connecter">
 </form>
 

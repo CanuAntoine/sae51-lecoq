@@ -2,15 +2,6 @@
 session_start();
 if(!isset($_SESSION['username'])) { die("Non autorisé."); }
 
-$env_file = __DIR__ . '/config.env';
-if(file_exists($env_file)){
-    $lines = file($env_file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-    foreach($lines as $line){
-        if(strpos(trim($line), '#') === 0) continue;
-        putenv(trim($line));
-    }
-}
-
 $user = $_SESSION['username'];
 $serviceId = $_POST['service_id'] ?? '';
 if(!$serviceId) die("service_id manquant");
