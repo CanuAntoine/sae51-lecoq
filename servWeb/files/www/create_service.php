@@ -5,7 +5,7 @@ if(!isset($_SESSION['username'])) { header("Location: login.php"); exit; }
 $service = $_POST['service_name'];
 $user = $_SESSION['username'];
 
-$allowed = ['html','php','wordpress'];
+$allowed = ['html','php'];
 if(!in_array($service, $allowed)) die("Service non autorisé.");
 
 $serviceId = uniqid("srv_");
