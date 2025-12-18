@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify
-import requests
+import requests, sqlite3
 
 app = Flask(__name__)
 DB_PATH = './files/www/users.db'
