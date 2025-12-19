@@ -8,7 +8,7 @@ if (!isset($_SESSION['username'])) {
 $service = $_POST['service_name'];
 $user = $_SESSION['username'];
 
-$allowed = ['html','php','wordpress'];
+$allowed = ['html','php'];
 if (!in_array($service, $allowed)) {
     die("Service non autorisé.");
 }
