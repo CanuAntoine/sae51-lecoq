@@ -206,8 +206,15 @@
     site_src: files/www/
     site_dest: /opt/myapp/servWeb/files/www/
   tasks:
-    - file: { path: "{{ app_dir }}", state: directory }
-    - copy: { src: ../../servWeb/, dest: "{{ app_dir }}/", mode: '0755' }
+    - name: Ensure that the directory exists
+      file: 
+        path: "{{ app_dir }}"
+        state: directory
+    - name: Copy servWeb directory content to ServWeb
+      copy: 
+        src: ../../servWeb/
+        dest: "{{ app_dir }}/"
+        mode: '0755'
     - name: Create systemd for servWeb
       copy:
         dest: /etc/systemd/system/servWeb.service
