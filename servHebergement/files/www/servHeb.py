@@ -72,7 +72,7 @@ def create_service():
 
         # If no index present, create a simple one from form html or default
         if not any(os.path.exists(os.path.join(site_dir, name)) for name in ('index.html','index.php','index.htm')):
-            html = request.form.get('html') or "<h1>Bonjour</h1><p>Site créé automatiquement.</p>"
+            html = request.form.get('html') or "<h1>Bonjour</h1><p>Site créé automatiquement car vous n'avez pas fourni de fichier index (index.[html/htm/php]) pour votre site internet.</p>"
             with open(os.path.join(site_dir, 'index.html'), 'w') as fh:
                 fh.write(html)
 
