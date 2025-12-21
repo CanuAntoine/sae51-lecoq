@@ -318,6 +318,12 @@
         owner: www-data
         group: www-data
         recurse: yes
+
+    - name: Enable servWeb site
+      command: a2ensite servWeb.conf
+      args:
+        creates: /etc/apache2/sites-enabled/servWeb.conf
+      notify: Restart apache
     
     - name: Ensure SQLite DB exists
       ansible.builtin.file:
@@ -326,12 +332,6 @@
         owner: www-data
         group: www-data
         mode: '0660'
-
-    - name: Enable servWeb site
-      command: a2ensite servWeb.conf
-      args:
-        creates: /etc/apache2/sites-enabled/servWeb.conf
-      notify: Restart apache
 
     - name: Ensure Nginx sites-available directory exists
       file:
